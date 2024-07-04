@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gap/gap.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -18,7 +20,7 @@ class ExerciseScreen extends StatefulWidget {
 class _ExerciseScreenState extends State<ExerciseScreen> {
   PageController _pageController = PageController();
   Timer? _timer;
-  int _start = 1;
+  int _start = 15;
   int _currentPage = 0;
   bool _isPreparation = true;
   List<DateTime> completedDays = [];
@@ -34,10 +36,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     List<String>? storedDays = prefs.getStringList('completedDays');
     if (storedDays != null) {
       setState(() {
-        completedDays = storedDays.map((day) => DateTime.parse(day)).toList();
+        completedDays = storedDays.map((day) {
+          DateTime date = DateTime.parse(day);
+          return DateTime(date.year, date.month, date.day);
+        }).toList();
       });
     }
-    print('Loaded completedDays: $completedDays');
   }
 
   Future<void> _saveCompletedDays() async {
@@ -46,7 +50,6 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         .map((day) => DateTime(day.year, day.month, day.day).toIso8601String())
         .toList();
     await prefs.setStringList('completedDays', storedDays);
-    print('Saved completedDays: $storedDays');
   }
 
   @override
@@ -63,7 +66,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         } else {
           if (_isPreparation) {
             _showLetsGoDialog();
-            _start = 3;
+            _start = 60;
             _isPreparation = false;
           } else if (_currentPage < exercises.length - 1) {
             _showNextExerciseDialog();
@@ -93,7 +96,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   void _resetTimer() {
     _timer?.cancel();
     setState(() {
-      _start = _isPreparation ? 1 : 3;
+      _start = _isPreparation ? 15 : 60;
     });
     _startTimer();
   }
@@ -158,7 +161,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  SizedBox(height: 52.h),
+                  Gap(52.h),
                   Text(
                     'Great! \nYou\'ve done the \nexercise, now the next\n one will begin!',
                     textAlign: TextAlign.center,
@@ -169,7 +172,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                       color: Colors.white,
                     ),
                   ),
-                  SizedBox(height: 64.83.h),
+                  Gap(64.83.h),
                   Container(
                     width: 331.w,
                     height: 48.h,
@@ -177,7 +180,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                       onPressed: () {
                         setState(() {
                           _currentPage++;
-                          _start = 1;
+                          _start = 15;
                           _isPreparation = true;
                         });
                         Navigator.of(context).pop();
@@ -215,15 +218,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   void _updateCalendar() {
-    print('Updating Calendar with completedDays: $completedDays');
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return CustomCalendarWidget(
           initialMonth: DateTime.now(),
-          onDaySelected: (DateTime day) {
-            print("Selected day: $day");
-          },
+          onDaySelected: (DateTime day) {},
           completedDays: completedDays,
         );
       },
@@ -240,51 +240,61 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
             AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
-              title: Center(
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 10.h),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () {
-                          if (_currentPage > 2) {
-                            _pageController.previousPage(
-                              duration: Duration(milliseconds: 500),
-                              curve: Curves.easeInOut,
-                            );
-                          }
-                        },
-                      ),
-                      Expanded(
-                        child: Text(
-                          exercises[_currentPage - 2],
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            fontSize: 24.sp,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                            height: 1.25,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.arrow_forward, color: Colors.white),
-                        onPressed: () {
-                          if (_currentPage < exercises.length + 1) {
-                            _pageController.nextPage(
-                              duration: Duration(milliseconds: 500),
-                              curve: Curves.easeInOut,
-                            );
-                          }
-                        },
-                      ),
-                    ],
+              toolbarHeight: 80.h,
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (_currentPage > 2)
+                    IconButton(
+                      icon: Icon(CupertinoIcons.left_chevron,
+                          color: Colors.white),
+                      onPressed: () {
+                        if (_currentPage > 2) {
+                          _pageController.previousPage(
+                            duration: Duration(milliseconds: 500),
+                            curve: Curves.easeInOut,
+                          );
+                        }
+                      },
+                    )
+                  else
+                    Opacity(
+                        opacity: 0.0,
+                        child: Icon(CupertinoIcons
+                            .left_chevron)), // Invisible icon for balance
+
+                  Text(
+                    exercises[_currentPage - 2],
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      fontSize: 24.sp,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                      height: 1.25,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
+
+                  if (_currentPage < exercises.length + 1)
+                    IconButton(
+                      icon: Icon(CupertinoIcons.right_chevron,
+                          color: Colors.white),
+                      onPressed: () {
+                        if (_currentPage < exercises.length + 1) {
+                          _pageController.nextPage(
+                            duration: Duration(milliseconds: 500),
+                            curve: Curves.easeInOut,
+                          );
+                        }
+                      },
+                    )
+                  else
+                    Opacity(
+                        opacity: 0.0,
+                        child: Icon(CupertinoIcons
+                            .right_chevron)), // Invisible icon for balance
+                ],
               ),
             ),
           Expanded(
@@ -306,7 +316,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 ),
                 _buildSecondOnboardingPage(
                   context,
-                  "You have 1 second to review the exercise, after that 3 seconds timer will be started automatically to perform it! After finishing the complex, the mark will be in the calendar. Enjoy!",
+                  "You have 15 seconds to review the exercise, after that 60 seconds timer will be started automatically to perform it! After finishing the complex, the mark will be in the calendar. Enjoy!",
                   2,
                 ),
                 ..._buildExercisePages(),
@@ -324,12 +334,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(height: 190.h),
+          Gap(190.h),
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
               style: GoogleFonts.poppins(
-                fontSize: 24.sp,
+                fontSize: 24.r,
                 fontWeight: FontWeight.w500,
                 color: Colors.white,
                 height: 1.25,
@@ -344,13 +354,13 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               ],
             ),
           ),
-          SizedBox(height: 53.h),
+          Gap(53.h),
           Image.asset(
             imagePath,
             width: 355.w,
             height: 206.48.h,
           ),
-          SizedBox(height: 142.52.h),
+          Gap(142.52.h),
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
@@ -373,7 +383,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               ],
             ),
           ),
-          SizedBox(height: 24.h),
+          Gap(24.h),
           OutlinedButton(
             onPressed: () {
               _pageController.nextPage(
@@ -396,7 +406,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               fixedSize: Size(331.w, 48.h),
             ),
           ),
-          SizedBox(height: 32.h),
+          Gap(32.h),
         ],
       ),
     );
@@ -409,29 +419,29 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         children: [
           Column(
             children: [
-              SizedBox(height: 180.h),
+              Gap(180.h),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 22.w),
                 child: RichText(
                   textAlign: TextAlign.center,
                   text: TextSpan(
                     style: GoogleFonts.poppins(
-                      fontSize: 24.sp,
+                      fontSize: 24.r,
                       fontWeight: FontWeight.w500,
                       color: Colors.white,
-                      height: 1.25,
+                      height: 1.10,
                     ),
                     children: [
                       TextSpan(text: 'You have '),
                       TextSpan(
-                        text: '1 second',
+                        text: '15 seconds',
                         style:
                             TextStyle(color: Color.fromRGBO(175, 194, 229, 1)),
                       ),
                       TextSpan(
                           text: ' to\n review the exercise, after\n that '),
                       TextSpan(
-                        text: '3 seconds',
+                        text: '60 seconds',
                         style:
                             TextStyle(color: Color.fromRGBO(175, 194, 229, 1)),
                       ),
@@ -442,7 +452,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: 222.h),
+              Gap(260.h),
               RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
@@ -465,7 +475,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                   ],
                 ),
               ),
-              SizedBox(height: 24.h),
+              Gap(24.h),
               OutlinedButton(
                 onPressed: () {
                   _startTimer();
@@ -489,18 +499,18 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                   fixedSize: Size(331.w, 48.h),
                 ),
               ),
-              SizedBox(height: 32.h),
+              Gap(32.h),
             ],
           ),
           Positioned(
             top: 456.h,
-            left: 100.w,
+            left: 115.w,
             child: Stack(
               children: [
                 Text(
                   'LETS',
                   style: GoogleFonts.poppins(
-                    fontSize: 64.sp,
+                    fontSize: 64.r,
                     fontWeight: FontWeight.w500,
                     height: 64.h / 80.h,
                     foreground: Paint()
@@ -512,7 +522,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 Text(
                   'LETS',
                   style: GoogleFonts.poppins(
-                    fontSize: 64.sp,
+                    fontSize: 64.r,
                     height: 64.h / 80.h,
                     fontWeight: FontWeight.w500,
                     color: Color.fromRGBO(103, 156, 253, 1),
@@ -523,13 +533,13 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
           ),
           Positioned(
             top: 500.h,
-            left: 75.w,
+            left: 90.w,
             child: Stack(
               children: [
                 Text(
                   'GO!',
                   style: GoogleFonts.poppins(
-                    fontSize: 128.sp,
+                    fontSize: 128.r,
                     fontWeight: FontWeight.w500,
                     height: 128.h / 160.h,
                     foreground: Paint()
@@ -541,7 +551,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 Text(
                   'GO!',
                   style: GoogleFonts.poppins(
-                    fontSize: 128.sp,
+                    fontSize: 128.r,
                     fontWeight: FontWeight.w500,
                     height: 128.h / 160.h,
                     color: Color.fromRGBO(103, 156, 253, 1),
@@ -561,7 +571,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       pages.add(
         Column(
           children: [
-            SizedBox(height: 26.h),
+            Gap(26.h),
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
@@ -579,7 +589,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 20.h),
+                    Gap(20.h),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 22.w),
                       child: Text(
@@ -597,7 +607,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 ),
               ),
             ),
-            SizedBox(height: 10.h),
+            Gap(10.h),
             Text(
               '${_start.toString()} sec',
               style: GoogleFonts.poppins(
@@ -606,7 +616,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 color: Colors.white,
               ),
             ),
-            SizedBox(height: 10.h),
+            Gap(10.h),
             Container(
               width: 331.w,
               height: 12.h,
@@ -617,7 +627,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(13.r),
                 child: LinearProgressIndicator(
-                  value: _start / (_isPreparation ? 3 : 5),
+                  value: _start / (_isPreparation ? 15 : 60),
                   backgroundColor: Color.fromRGBO(175, 194, 229, 1),
                   valueColor: AlwaysStoppedAnimation<Color>(
                       Color.fromRGBO(103, 156, 253, 1)),
@@ -625,7 +635,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 ),
               ),
             ),
-            SizedBox(height: 54.h),
+            Gap(54.h),
           ],
         ),
       );

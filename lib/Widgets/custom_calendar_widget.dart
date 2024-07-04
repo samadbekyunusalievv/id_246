@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CustomCalendarWidget extends StatefulWidget {
   final DateTime initialMonth;
@@ -19,39 +20,39 @@ class CustomCalendarWidget extends StatefulWidget {
 class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
   late DateTime _focusedDay;
   DateTime? _selectedDay;
+  List<DateTime> completedDays = [];
 
   @override
   void initState() {
     super.initState();
     _focusedDay = widget.initialMonth;
-    print('Init State - Completed Days: ${widget.completedDays}');
+    _loadCompletedDays();
   }
 
-  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
-    if (selectedDay.isAfter(DateTime.now().subtract(Duration(days: 1)))) {
+  Future<void> _loadCompletedDays() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? storedDays = prefs.getStringList('completedDays');
+    if (storedDays != null) {
       setState(() {
-        _selectedDay = selectedDay;
-        _focusedDay = focusedDay;
+        completedDays = storedDays.map((day) {
+          DateTime date = DateTime.parse(day);
+          return DateTime(date.year, date.month, date.day);
+        }).toList();
       });
-      widget.onDaySelected(selectedDay);
     }
   }
 
-  bool isSameDay(DateTime a, DateTime b) {
+  bool isSameDay(DateTime? a, DateTime? b) {
+    if (a == null || b == null) return false;
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   bool _isCompletedDay(DateTime day) {
-    bool isCompleted = widget.completedDays
-        .any((completedDay) => isSameDay(completedDay, day));
-    print(
-        'Checking if ${day.toIso8601String().split('T')[0]} is completed: $isCompleted');
-    return isCompleted;
+    return completedDays.any((completedDay) => isSameDay(completedDay, day));
   }
 
   @override
   Widget build(BuildContext context) {
-    ScreenUtil.init(context);
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: EdgeInsets.all(15.w),
@@ -70,32 +71,7 @@ class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
               child: Column(
                 children: [
                   Text(
-                    _focusedDay.month == 1
-                        ? 'JANUARY'
-                        : _focusedDay.month == 2
-                            ? 'FEBRUARY'
-                            : _focusedDay.month == 3
-                                ? 'MARCH'
-                                : _focusedDay.month == 4
-                                    ? 'APRIL'
-                                    : _focusedDay.month == 5
-                                        ? 'MAY'
-                                        : _focusedDay.month == 6
-                                            ? 'JUNE'
-                                            : _focusedDay.month == 7
-                                                ? 'JULY'
-                                                : _focusedDay.month == 8
-                                                    ? 'AUGUST'
-                                                    : _focusedDay.month == 9
-                                                        ? 'SEPTEMBER'
-                                                        : _focusedDay.month ==
-                                                                10
-                                                            ? 'OCTOBER'
-                                                            : _focusedDay
-                                                                        .month ==
-                                                                    11
-                                                                ? 'NOVEMBER'
-                                                                : 'DECEMBER',
+                    _monthText(_focusedDay.month),
                     style: TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 20.sp,
@@ -131,81 +107,70 @@ class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
               ),
             ),
             Expanded(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 2.w),
-                child: GridView.builder(
-                  itemCount: 35,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    crossAxisSpacing: 1.w,
-                    mainAxisSpacing: 1.h,
-                    childAspectRatio: 1.0,
-                  ),
-                  itemBuilder: (context, index) {
-                    DateTime firstDayOfMonth =
-                        DateTime(_focusedDay.year, _focusedDay.month, 1);
-                    int firstWeekdayOfMonth = firstDayOfMonth.weekday;
-                    DateTime day = firstDayOfMonth
-                        .add(Duration(days: index - firstWeekdayOfMonth + 1));
-                    bool isOutside = day.month != _focusedDay.month;
-                    bool isSelected =
-                        isSameDay(day, _selectedDay ?? DateTime(1970, 1, 1));
-                    bool isCompleted = _isCompletedDay(day);
+              child: GridView.builder(
+                itemCount: 35,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  crossAxisSpacing: 1.w,
+                  mainAxisSpacing: 1.h,
+                  childAspectRatio: 1.0,
+                ),
+                itemBuilder: (context, index) {
+                  DateTime day = _calculateDay(index);
+                  bool isOutside = day.month != _focusedDay.month;
+                  bool isSelected = isSameDay(day, _selectedDay);
+                  bool isCompleted = _isCompletedDay(day);
 
-                    return GestureDetector(
-                      onTap: () {
-                        if (!isOutside &&
-                            day.isAfter(
-                                DateTime.now().subtract(Duration(days: 1)))) {
-                          _onDaySelected(day, _focusedDay);
-                        }
-                      },
-                      child: Container(
-                        width: 48.w,
-                        height: 48.h,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? Color.fromRGBO(241, 181, 181, 1)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(3.r),
-                          border: isOutside
-                              ? null
-                              : Border.all(
-                                  color: Colors.white.withOpacity(0.5),
-                                  width: 1.w,
-                                ),
-                        ),
-                        child: Center(
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Text(
-                                '${day.day}',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 13.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: isOutside
-                                      ? Colors.white.withOpacity(0.5)
-                                      : Colors.white,
-                                  height: 1.2.h,
+                  return GestureDetector(
+                    onTap: () {
+                      if (!isOutside &&
+                          day.isAfter(
+                              DateTime.now().subtract(Duration(days: 1)))) {
+                        _onDaySelected(day, _focusedDay);
+                      }
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Color.fromRGBO(241, 181, 181, 1)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(3.r),
+                        border: isOutside
+                            ? null
+                            : Border.all(
+                                color: Colors.white.withOpacity(0.5),
+                                width: 1.w),
+                      ),
+                      child: Center(
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Text(
+                              '${day.day}',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 13.sp,
+                                fontWeight: FontWeight.w600,
+                                color: isOutside
+                                    ? Colors.white.withOpacity(0.5)
+                                    : Colors.white,
+                                height: 1.2.h,
+                              ),
+                            ),
+                            if (isCompleted)
+                              Positioned(
+                                child: Image.asset(
+                                  'assets/tick.png',
+                                  width: 30.w,
+                                  height: 25.h,
                                 ),
                               ),
-                              if (isCompleted)
-                                Positioned(
-                                  child: Image.asset(
-                                    'assets/tick.png',
-                                    width: 30.w,
-                                    height: 25.h,
-                                  ),
-                                ),
-                            ],
-                          ),
+                          ],
                         ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
             ),
             Container(
@@ -237,5 +202,38 @@ class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
         ),
       ),
     );
+  }
+
+  String _monthText(int month) {
+    return [
+      'JANUARY',
+      'FEBRUARY',
+      'MARCH',
+      'APRIL',
+      'MAY',
+      'JUNE',
+      'JULY',
+      'AUGUST',
+      'SEPTEMBER',
+      'OCTOBER',
+      'NOVEMBER',
+      'DECEMBER'
+    ][month - 1];
+  }
+
+  DateTime _calculateDay(int index) {
+    DateTime firstDayOfMonth = DateTime(_focusedDay.year, _focusedDay.month, 1);
+    int firstWeekdayOfMonth = firstDayOfMonth.weekday;
+    return firstDayOfMonth.add(Duration(days: index - firstWeekdayOfMonth + 1));
+  }
+
+  void _onDaySelected(DateTime day, DateTime focusedDay) {
+    if (day.isAfter(DateTime.now().subtract(Duration(days: 1)))) {
+      setState(() {
+        _selectedDay = day;
+        _focusedDay = focusedDay;
+      });
+      widget.onDaySelected(day);
+    }
   }
 }

@@ -244,7 +244,7 @@ class PremiumScreen extends StatelessWidget {
                     'Adds free',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
-                      fontSize: 24.sp,
+                      fontSize: 24.r,
                       fontWeight: FontWeight.w500,
                       height: 1.25.h,
                       color: Colors.white,
@@ -257,7 +257,7 @@ class PremiumScreen extends StatelessWidget {
                       Text(
                         'for \$0.49',
                         style: GoogleFonts.poppins(
-                          fontSize: 36.sp,
+                          fontSize: 36.r,
                           fontWeight: FontWeight.w700,
                           height: 1.25.h,
                           foreground: Paint()
@@ -269,7 +269,7 @@ class PremiumScreen extends StatelessWidget {
                       Text(
                         'for \$0.49',
                         style: GoogleFonts.poppins(
-                          fontSize: 36.sp,
+                          fontSize: 36.r,
                           fontWeight: FontWeight.w700,
                           height: 1.25.h,
                           color: Color.fromRGBO(103, 156, 253, 1),
@@ -315,7 +315,7 @@ class PremiumScreen extends StatelessWidget {
                     child: Text(
                       'Restore',
                       style: GoogleFonts.poppins(
-                        fontSize: 16.sp,
+                        fontSize: 16.r,
                         fontWeight: FontWeight.w500,
                         height: 1.5.h,
                         color: Colors.white,
