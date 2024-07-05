@@ -36,19 +36,15 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     List<String>? storedDays = prefs.getStringList('completedDays');
     if (storedDays != null) {
       setState(() {
-        completedDays = storedDays.map((day) {
-          DateTime date = DateTime.parse(day);
-          return DateTime(date.year, date.month, date.day);
-        }).toList();
+        completedDays = storedDays.map((day) => DateTime.parse(day)).toList();
       });
     }
   }
 
   Future<void> _saveCompletedDays() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> storedDays = completedDays
-        .map((day) => DateTime(day.year, day.month, day.day).toIso8601String())
-        .toList();
+    List<String> storedDays =
+        completedDays.map((day) => day.toIso8601String()).toList();
     await prefs.setStringList('completedDays', storedDays);
   }
 
@@ -96,7 +92,8 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   void _resetTimer() {
     _timer?.cancel();
     setState(() {
-      _start = _isPreparation ? 15 : 60;
+      _start = 15;
+      _isPreparation = true;
     });
     _startTimer();
   }
@@ -131,6 +128,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     );
     Future.delayed(Duration(seconds: 1), () {
       Navigator.of(context).pop();
+      setState(() {
+        _start = 60;
+        _isPreparation = false;
+      });
       _startTimer();
     });
   }
@@ -249,25 +250,28 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                       icon: Icon(CupertinoIcons.left_chevron,
                           color: Colors.white),
                       onPressed: () {
-                        if (_currentPage > 2) {
-                          _pageController.previousPage(
-                            duration: Duration(milliseconds: 500),
-                            curve: Curves.easeInOut,
-                          );
-                        }
+                        setState(() {
+                          if (_currentPage > 2) {
+                            _currentPage--;
+                            _pageController.previousPage(
+                              duration: Duration(milliseconds: 500),
+                              curve: Curves.easeInOut,
+                            );
+                            _resetTimer();
+                          }
+                        });
                       },
                     )
                   else
                     Opacity(
-                        opacity: 0.0,
-                        child: Icon(CupertinoIcons
-                            .left_chevron)), // Invisible icon for balance
-
+                      opacity: 0.0,
+                      child: Icon(CupertinoIcons.left_chevron),
+                    ),
                   Text(
                     exercises[_currentPage - 2],
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
-                      fontSize: 24.sp,
+                      fontSize: 24.r,
                       fontWeight: FontWeight.w500,
                       color: Colors.white,
                       height: 1.25,
@@ -275,25 +279,28 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-
                   if (_currentPage < exercises.length + 1)
                     IconButton(
                       icon: Icon(CupertinoIcons.right_chevron,
                           color: Colors.white),
                       onPressed: () {
-                        if (_currentPage < exercises.length + 1) {
-                          _pageController.nextPage(
-                            duration: Duration(milliseconds: 500),
-                            curve: Curves.easeInOut,
-                          );
-                        }
+                        setState(() {
+                          if (_currentPage < exercises.length + 1) {
+                            _currentPage++;
+                            _pageController.nextPage(
+                              duration: Duration(milliseconds: 500),
+                              curve: Curves.easeInOut,
+                            );
+                            _resetTimer();
+                          }
+                        });
                       },
                     )
                   else
                     Opacity(
-                        opacity: 0.0,
-                        child: Icon(CupertinoIcons
-                            .right_chevron)), // Invisible icon for balance
+                      opacity: 0.0,
+                      child: Icon(CupertinoIcons.right_chevron),
+                    ),
                 ],
               ),
             ),
@@ -304,6 +311,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               onPageChanged: (index) {
                 setState(() {
                   _currentPage = index;
+                  _resetTimer();
                 });
               },
               children: [
@@ -390,6 +398,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 duration: Duration(milliseconds: 500),
                 curve: Curves.easeInOut,
               );
+              _resetTimer();
             },
             child: Text(
               'Continue',
@@ -483,6 +492,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                     duration: Duration(milliseconds: 500),
                     curve: Curves.easeInOut,
                   );
+                  _resetTimer();
                 },
                 child: Text(
                   'Start',

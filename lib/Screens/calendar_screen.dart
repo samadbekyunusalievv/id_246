@@ -364,7 +364,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 Text(
                   months[(_currentIndex - 1 + months.length) % months.length],
                   style: GoogleFonts.poppins(
-                    fontSize: 32.sp,
+                    fontSize: 32.r,
                     fontWeight: FontWeight.w500,
                     height: (48.h / 32.h),
                     color: Colors.grey,
@@ -383,7 +383,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 Text(
                   months[_currentIndex],
                   style: GoogleFonts.poppins(
-                    fontSize: 32.sp,
+                    fontSize: 32.r,
                     fontWeight: FontWeight.w500,
                     height: (48.h / 32.h),
                     color: Colors.white,
@@ -402,7 +402,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 Text(
                   months[(_currentIndex + 1) % months.length],
                   style: GoogleFonts.poppins(
-                    fontSize: 32.sp,
+                    fontSize: 32.r,
                     fontWeight: FontWeight.w500,
                     height: (48.h / 32.h),
                     color: Colors.grey,
