@@ -21,11 +21,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onItemTapped(int index) {
-    _pageController.animateToPage(
-      index,
-      duration: Duration(milliseconds: 300),
-      curve: Curves.ease,
-    );
+    _pageController.jumpToPage(index);
     setState(() {
       _currentIndex = index;
     });
@@ -41,6 +37,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
       body: PageView(
         controller: _pageController,
+        physics: NeverScrollableScrollPhysics(),
         onPageChanged: _onPageChanged,
         children: [
           CalendarScreen(completedDays: []),
