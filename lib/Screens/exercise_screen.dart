@@ -23,6 +23,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   int _start = 15;
   int _currentPage = 0;
   bool _isPreparation = true;
+  bool _isNavigating = false;
   List<DateTime> completedDays = [];
 
   @override
@@ -55,6 +56,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   void _startTimer() {
+    _timer?.cancel();
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       setState(() {
         if (_start > 0) {
@@ -62,8 +64,6 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         } else {
           if (_isPreparation) {
             _showLetsGoDialog();
-            _start = 60;
-            _isPreparation = false;
           } else if (_currentPage < exercises.length - 1) {
             _showNextExerciseDialog();
           } else {
@@ -142,77 +142,90 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15.r),
-          ),
-          child: Container(
-            width: 355.w,
-            height: 306.h,
-            decoration: BoxDecoration(
-              color: Color.fromRGBO(103, 156, 253, 1),
-              borderRadius: BorderRadius.circular(15.r),
-              image: DecorationImage(
-                image: AssetImage('assets/next_exercise_image.png'),
-                fit: BoxFit.fill,
+        return Stack(
+          children: [
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 3.0, sigmaY: 3.0),
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
               ),
             ),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10.w),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Gap(52.h),
-                  Text(
-                    'Great! \nYou\'ve done the \nexercise, now the next\n one will begin!',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 24.r,
-                      height: 1.25.h,
-                      color: Colors.white,
+            Center(
+              child: Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15.r),
+                ),
+                child: Container(
+                  width: 355.w,
+                  height: 306.h,
+                  decoration: BoxDecoration(
+                    color: Color.fromRGBO(103, 156, 253, 1),
+                    borderRadius: BorderRadius.circular(15.r),
+                    image: DecorationImage(
+                      image: AssetImage('assets/next_exercise_image.png'),
+                      fit: BoxFit.fill,
                     ),
                   ),
-                  Gap(64.83.h),
-                  Container(
-                    width: 331.w,
-                    height: 48.h,
-                    child: OutlinedButton(
-                      onPressed: () {
-                        setState(() {
-                          _currentPage++;
-                          _start = 15;
-                          _isPreparation = true;
-                        });
-                        Navigator.of(context).pop();
-                        _pageController.nextPage(
-                          duration: Duration(milliseconds: 500),
-                          curve: Curves.easeInOut,
-                        );
-                        _resetTimer();
-                      },
-                      child: Text(
-                        'Next Exercise',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.poppins(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w500,
-                          height: 1.5,
-                          color: Colors.white,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Gap(52.h),
+                        Text(
+                          'Great! \nYou\'ve done the \nexercise, now the next\n one will begin!',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 24.r,
+                            height: 1.25.h,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.white, width: 3.w),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(47.r),
+                        Gap(64.83.h),
+                        Container(
+                          width: 331.w,
+                          height: 48.h,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              setState(() {
+                                _currentPage++;
+                                _start = 15;
+                                _isPreparation = true;
+                                _isNavigating = false;
+                              });
+                              Navigator.of(context).pop();
+                              _pageController.nextPage(
+                                duration: Duration(milliseconds: 500),
+                                curve: Curves.easeInOut,
+                              );
+                              _resetTimer();
+                            },
+                            child: Text(
+                              'Next Exercise',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w500,
+                                height: 1.5,
+                                color: Colors.white,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: Colors.white, width: 3.w),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(47.r),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
-          ),
+          ],
         );
       },
     );
@@ -231,6 +244,24 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     );
   }
 
+  void _navigateToPage(int index) {
+    if (!_isNavigating) {
+      _isNavigating = true;
+      _pageController
+          .animateToPage(
+        index,
+        duration: Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      )
+          .then((_) {
+        setState(() {
+          _isNavigating = false;
+          _resetTimer();
+        });
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -242,6 +273,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               backgroundColor: Colors.transparent,
               elevation: 0,
               toolbarHeight: 80.h,
+              automaticallyImplyLeading: false, // Disable default back button
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -250,16 +282,9 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                       icon: Icon(CupertinoIcons.left_chevron,
                           color: Colors.white),
                       onPressed: () {
-                        setState(() {
-                          if (_currentPage > 2) {
-                            _currentPage--;
-                            _pageController.previousPage(
-                              duration: Duration(milliseconds: 500),
-                              curve: Curves.easeInOut,
-                            );
-                            _resetTimer();
-                          }
-                        });
+                        if (!_isNavigating && _currentPage > 2) {
+                          _navigateToPage(_currentPage - 1);
+                        }
                       },
                     )
                   else
@@ -284,16 +309,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                       icon: Icon(CupertinoIcons.right_chevron,
                           color: Colors.white),
                       onPressed: () {
-                        setState(() {
-                          if (_currentPage < exercises.length + 1) {
-                            _currentPage++;
-                            _pageController.nextPage(
-                              duration: Duration(milliseconds: 500),
-                              curve: Curves.easeInOut,
-                            );
-                            _resetTimer();
-                          }
-                        });
+                        if (!_isNavigating &&
+                            _currentPage < exercises.length + 1) {
+                          _navigateToPage(_currentPage + 1);
+                        }
                       },
                     )
                   else
@@ -394,11 +413,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
           Gap(24.h),
           OutlinedButton(
             onPressed: () {
-              _pageController.nextPage(
-                duration: Duration(milliseconds: 500),
-                curve: Curves.easeInOut,
-              );
-              _resetTimer();
+              _navigateToPage(_currentPage + 1);
             },
             child: Text(
               'Continue',
@@ -488,11 +503,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               OutlinedButton(
                 onPressed: () {
                   _startTimer();
-                  _pageController.nextPage(
-                    duration: Duration(milliseconds: 500),
-                    curve: Curves.easeInOut,
-                  );
-                  _resetTimer();
+                  _navigateToPage(_currentPage + 1);
                 },
                 child: Text(
                   'Start',
@@ -609,7 +620,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w400,
                           color: Colors.white,
-                          height: 1.25.h,
+                          height: 1.25,
                         ),
                       ),
                     ),

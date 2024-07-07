@@ -53,18 +53,20 @@ class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
 
   @override
   Widget build(BuildContext context) {
+    double cellSize = (ScreenUtil().screenWidth - 16.w) / 7;
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: EdgeInsets.all(15.w),
       child: Container(
-        width: 346.w,
-        height: 427.h,
+        width: double.infinity,
         decoration: BoxDecoration(
           color: Color.fromRGBO(14, 14, 14, 1),
           borderRadius: BorderRadius.circular(31.r),
           border: Border.all(color: Colors.white, width: 2.w),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
               padding: EdgeInsets.only(top: 18.h, left: 8.w, right: 8.w),
@@ -77,7 +79,6 @@ class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
                       fontSize: 20.sp,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
-                      height: 1.5.h,
                     ),
                   ),
                   SizedBox(height: 19.h),
@@ -94,7 +95,6 @@ class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
                                   fontSize: 13.sp,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
-                                  height: 1.5.h,
                                 ),
                               ),
                             ),
@@ -106,72 +106,72 @@ class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
                 ],
               ),
             ),
-            Expanded(
-              child: GridView.builder(
-                itemCount: 35,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 7,
-                  crossAxisSpacing: 1.w,
-                  mainAxisSpacing: 1.h,
-                  childAspectRatio: 1.0,
-                ),
-                itemBuilder: (context, index) {
-                  DateTime day = _calculateDay(index);
-                  bool isOutside = day.month != _focusedDay.month;
-                  bool isSelected = isSameDay(day, _selectedDay);
-                  bool isCompleted = _isCompletedDay(day);
+            GridView.builder(
+              physics: NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              itemCount: 35,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                crossAxisSpacing: 1.r,
+                mainAxisSpacing: 1.r,
+                childAspectRatio: 1.0,
+              ),
+              itemBuilder: (context, index) {
+                DateTime day = _calculateDay(index);
+                bool isOutside = day.month != _focusedDay.month;
+                bool isSelected = isSameDay(day, _selectedDay);
+                bool isCompleted = _isCompletedDay(day);
 
-                  return GestureDetector(
-                    onTap: () {
-                      if (!isOutside &&
-                          day.isAfter(
-                              DateTime.now().subtract(Duration(days: 1)))) {
-                        _onDaySelected(day, _focusedDay);
-                      }
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? Color.fromRGBO(241, 181, 181, 1)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(3.r),
-                        border: isOutside
-                            ? null
-                            : Border.all(
-                                color: Colors.white.withOpacity(0.5),
-                                width: 1.w),
-                      ),
-                      child: Center(
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Text(
-                              '${day.day}',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13.sp,
-                                fontWeight: FontWeight.w600,
-                                color: isOutside
-                                    ? Colors.white.withOpacity(0.5)
-                                    : Colors.white,
-                                height: 1.2.h,
+                return GestureDetector(
+                  onTap: () {
+                    if (!isOutside &&
+                        day.isAfter(
+                            DateTime.now().subtract(Duration(days: 1)))) {
+                      setState(() {
+                        _selectedDay = day;
+                      });
+                    }
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Color.fromRGBO(241, 181, 181, 1)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(3.r),
+                      border: isOutside
+                          ? null
+                          : Border.all(
+                              color: Colors.white.withOpacity(0.5), width: 1.w),
+                    ),
+                    child: Center(
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Text(
+                            '${day.day}',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13.sp,
+                              fontWeight: FontWeight.w600,
+                              color: isOutside
+                                  ? Colors.white.withOpacity(0.5)
+                                  : Colors.white,
+                            ),
+                          ),
+                          if (isCompleted)
+                            Positioned(
+                              child: Image.asset(
+                                'assets/tick.png',
+                                width: 30.w,
+                                height: 25.h,
                               ),
                             ),
-                            if (isCompleted)
-                              Positioned(
-                                child: Image.asset(
-                                  'assets/tick.png',
-                                  width: 30.w,
-                                  height: 25.h,
-                                ),
-                              ),
-                          ],
-                        ),
+                        ],
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
             Container(
               height: 50.h,
@@ -225,15 +225,5 @@ class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
     DateTime firstDayOfMonth = DateTime(_focusedDay.year, _focusedDay.month, 1);
     int firstWeekdayOfMonth = firstDayOfMonth.weekday;
     return firstDayOfMonth.add(Duration(days: index - firstWeekdayOfMonth + 1));
-  }
-
-  void _onDaySelected(DateTime day, DateTime focusedDay) {
-    if (day.isAfter(DateTime.now().subtract(Duration(days: 1)))) {
-      setState(() {
-        _selectedDay = day;
-        _focusedDay = focusedDay;
-      });
-      widget.onDaySelected(day);
-    }
   }
 }
