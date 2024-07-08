@@ -6,11 +6,15 @@ class CustomCalendarWidget extends StatefulWidget {
   final DateTime initialMonth;
   final Function(DateTime) onDaySelected;
   final List<DateTime> completedDays;
+  final Map<String, Map<String, Set<String>>> ritualsByMonth;
+  final Map<String, Color> dayColors;
 
   CustomCalendarWidget({
     required this.initialMonth,
     required this.onDaySelected,
     required this.completedDays,
+    required this.ritualsByMonth,
+    required this.dayColors,
   });
 
   @override
@@ -49,6 +53,12 @@ class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
 
   bool _isCompletedDay(DateTime day) {
     return completedDays.any((completedDay) => isSameDay(completedDay, day));
+  }
+
+  bool _hasRituals(DateTime day) {
+    String dayKey = day.toString();
+    String monthKey = "${day.year}-${day.month}";
+    return widget.ritualsByMonth[monthKey]?.containsKey(dayKey) ?? false;
   }
 
   @override
@@ -121,22 +131,29 @@ class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
                 bool isOutside = day.month != _focusedDay.month;
                 bool isSelected = isSameDay(day, _selectedDay);
                 bool isCompleted = _isCompletedDay(day);
+                bool hasRituals = _hasRituals(day);
+                Color? dayColor = widget.dayColors[day.toString()];
 
                 return GestureDetector(
                   onTap: () {
                     if (!isOutside &&
+                        !hasRituals &&
                         day.isAfter(
                             DateTime.now().subtract(Duration(days: 1)))) {
                       setState(() {
-                        _selectedDay = day;
+                        if (isSelected) {
+                          _selectedDay = null;
+                        } else {
+                          _selectedDay = day;
+                        }
                       });
                     }
                   },
                   child: Container(
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? Color.fromRGBO(241, 181, 181, 1)
-                          : Colors.transparent,
+                          ? Colors.white
+                          : dayColor ?? Colors.transparent,
                       borderRadius: BorderRadius.circular(3.r),
                       border: isOutside
                           ? null
@@ -153,9 +170,11 @@ class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
                               fontFamily: 'Inter',
                               fontSize: 13.sp,
                               fontWeight: FontWeight.w600,
-                              color: isOutside
-                                  ? Colors.white.withOpacity(0.5)
-                                  : Colors.white,
+                              color: isSelected
+                                  ? Colors.black
+                                  : isOutside
+                                      ? Colors.white.withOpacity(0.5)
+                                      : Colors.white,
                             ),
                           ),
                           if (isCompleted)
@@ -164,6 +183,7 @@ class _CustomCalendarWidgetState extends State<CustomCalendarWidget> {
                                 'assets/tick.png',
                                 width: 30.w,
                                 height: 25.h,
+                                color: Colors.white,
                               ),
                             ),
                         ],

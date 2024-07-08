@@ -12,36 +12,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../Dialogs/delete_dialog.dart';
 import '../Widgets/custom_calendar_widget.dart';
 
-Future<DateTime?> showCalendarDialog(
-    BuildContext context,
-    List<DateTime> completedDays,
-    int currentIndex,
-    Function(DateTime?) onDaySelected) async {
-  DateTime? selectedDay = await showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.all(15.w),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-          child: CustomCalendarWidget(
-            initialMonth: DateTime(DateTime.now().year, currentIndex + 1),
-            onDaySelected: (selectedDay) {
-              onDaySelected(selectedDay);
-            },
-            completedDays: completedDays,
-          ),
-        ),
-      );
-    },
-  );
-  return selectedDay;
-}
-
 class CalendarScreen extends StatefulWidget {
   final List<DateTime> completedDays;
+
   CalendarScreen({required this.completedDays});
+
   @override
   _CalendarScreenState createState() => _CalendarScreenState();
 }
@@ -67,7 +42,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   TextEditingController _ritualController = TextEditingController();
   Map<String, bool> _isExpandedMap = {};
   Map<String, bool> _addingCustomRitualMap = {};
-  Map<String, Color> _textColorMap = {};
+  Map<String, Color> _dayColors = {};
   final List<Color> _backgroundColors = [
     Color.fromRGBO(241, 181, 181, 1),
     Color.fromRGBO(175, 194, 229, 1),
@@ -93,29 +68,110 @@ class _CalendarScreenState extends State<CalendarScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? ritualsJson = prefs.getString('ritualsByMonth');
     if (ritualsJson != null) {
-      Map<String, Map<String, Set<String>>> loadedRituals =
-          Map.from(json.decode(ritualsJson)).map((month, days) => MapEntry(
-              month,
-              Map.from(days).map(
-                  (day, rituals) => MapEntry(day, Set<String>.from(rituals)))));
+      Map<String, dynamic> decodedJson = json.decode(ritualsJson);
+      Map<String, Map<String, Set<String>>> loadedRituals = {};
+      Map<String, Color> loadedColors = {};
+
+      decodedJson.forEach((month, days) {
+        Map<String, Set<String>> ritualsByDay = {};
+        if (days is Map<String, dynamic>) {
+          days.forEach((day, ritualsAndColor) {
+            if (ritualsAndColor is Map<String, dynamic>) {
+              Set<String> rituals =
+                  Set<String>.from(ritualsAndColor['rituals']);
+              int? colorValue = ritualsAndColor['color'] as int?;
+              if (colorValue != null) {
+                Color color = Color(colorValue);
+                ritualsByDay[day] = rituals;
+                loadedColors[day] = color;
+              }
+            }
+          });
+        }
+        loadedRituals[month] = ritualsByDay;
+      });
+
       setState(() {
         _ritualsByMonth = loadedRituals;
+        _dayColors = loadedColors;
       });
     }
   }
 
   Future<void> _saveRituals() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String ritualsJson = json.encode(_ritualsByMonth.map((month, days) =>
-        MapEntry(month,
-            days.map((day, rituals) => MapEntry(day, rituals.toList())))));
-    await prefs.setString('ritualsByMonth', ritualsJson);
+    Map<String, Map<String, Map<String, dynamic>>> saveData = {};
+
+    _ritualsByMonth.forEach((month, days) {
+      Map<String, Map<String, dynamic>> daysData = {};
+      days.forEach((day, rituals) {
+        if (_dayColors.containsKey(day)) {
+          daysData[day] = {
+            'rituals': rituals.toList(),
+            'color': _dayColors[day]!.value
+          };
+        }
+      });
+      saveData[month] = daysData;
+    });
+
+    String saveJson = json.encode(saveData);
+    await prefs.setString('ritualsByMonth', saveJson);
+  }
+
+  void _createRitualForDate(String dateKey, Set<String> rituals) {
+    String monthKey = "${_selectedDate!.year}-${_selectedDate!.month}";
+    setState(() {
+      if (!_ritualsByMonth.containsKey(monthKey)) {
+        _ritualsByMonth[monthKey] = {};
+      }
+      _ritualsByMonth[monthKey]![dateKey] = rituals;
+      if (!_dayColors.containsKey(dateKey)) {
+        _dayColors[dateKey] = _backgroundColors[_getColorIndex(dateKey)];
+      }
+    });
+    _saveRituals();
+  }
+
+  void _toggleRitual(String ritual) {
+    if (_selectedDate != null) {
+      String monthKey = "${_selectedDate!.year}-${_selectedDate!.month}";
+      String dateKey = _selectedDate.toString();
+      Set<String>? rituals = _ritualsByMonth[monthKey]?[dateKey] ?? <String>{};
+      setState(() {
+        if (rituals.contains(ritual)) {
+          rituals.remove(ritual);
+        } else {
+          rituals.add(ritual);
+        }
+        _ritualsByMonth[monthKey]![dateKey] = rituals;
+        _dayColors[dateKey] ??= _backgroundColors[_getColorIndex(dateKey)];
+      });
+      _saveRituals();
+    }
+  }
+
+  void _addCustomRitual(String ritual) {
+    if (_selectedDate != null && ritual.isNotEmpty) {
+      String dateKey = _selectedDate.toString();
+      Set<String> rituals =
+          _ritualsByMonth["${_selectedDate!.year}-${_selectedDate!.month}"]
+                  ?[dateKey] ??
+              <String>{};
+      rituals.add(ritual);
+      _createRitualForDate(dateKey, rituals);
+      setState(() {
+        _addingCustomRitualMap[dateKey] = false;
+        _ritualController.clear();
+      });
+    }
   }
 
   void _previousMonth() {
     setState(() {
       _currentIndex = (_currentIndex - 1 + months.length) % months.length;
       _selectedDate = null;
+      _isExpandedMap.clear();
     });
   }
 
@@ -123,6 +179,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     setState(() {
       _currentIndex = (_currentIndex + 1) % months.length;
       _selectedDate = null;
+      _isExpandedMap.clear();
     });
   }
 
@@ -137,6 +194,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
           _updateRitualMapForNewDate(expand: true);
         });
       },
+      _ritualsByMonth,
+      _dayColors,
     );
 
     if (selectedDay != null) {
@@ -161,49 +220,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  void _toggleRitual(String ritual) {
-    if (_selectedDate != null) {
-      String monthKey = "${_selectedDate!.year}-${_selectedDate!.month}";
-      String dateKey = _selectedDate.toString();
-      Set<String>? rituals = _ritualsByMonth[monthKey]?[dateKey] ?? <String>{};
-      setState(() {
-        if (rituals.contains(ritual)) {
-          rituals.remove(ritual);
-        } else {
-          rituals.add(ritual);
-        }
-        _ritualsByMonth[monthKey]![dateKey] = rituals;
-        _saveRituals();
-      });
-    }
-  }
-
-  void _addCustomRitual(String ritual, Color textColor) {
-    if (_selectedDate != null && ritual.isNotEmpty) {
-      String monthKey = "${_selectedDate!.year}-${_selectedDate!.month}";
-      String dateKey = _selectedDate.toString();
-      Set<String>? rituals = _ritualsByMonth[monthKey]?[dateKey] ?? <String>{};
-      setState(() {
-        rituals.add(ritual);
-        _ritualsByMonth[monthKey]![dateKey] = rituals;
-        _ritualsByMonth[monthKey] = {
-          dateKey: rituals,
-          ..._ritualsByMonth[monthKey]!
-        };
-        _textColorMap[ritual] = textColor;
-        _saveRituals();
-        _addingCustomRitualMap[dateKey] = false;
-        _ritualController.clear();
-      });
-    }
-  }
-
   void _showDeleteDialog(String monthKey, String dateKey) {
     DateTime date = DateTime.parse(dateKey);
 
     showDeleteDialog(context, () {
       setState(() {
         _ritualsByMonth[monthKey]!.remove(dateKey);
+        _dayColors.remove(dateKey);
         _saveRituals();
       });
     }, date);
@@ -298,9 +321,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       iconData = isSelected ? Icons.check_circle : Icons.add_circle_outline;
     }
 
-    Color iconColor = isCustom
-        ? textAndIconColor
-        : Colors.black; // For custom rituals, icon color matches the text color
+    Color iconColor = isCustom ? textAndIconColor : Colors.black;
 
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 4.h),
@@ -467,7 +488,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               children: sortedRitualEntries?.map((entry) {
                     DateTime date = DateTime.parse(entry.key);
                     bool isExpanded = _isExpandedMap[entry.key] ?? false;
-                    Color backgroundColor =
+                    Color backgroundColor = _dayColors[entry.key] ??
                         _backgroundColors[_getColorIndex(entry.key)];
                     Color textColor = _getTextColor(backgroundColor);
                     return Slidable(
@@ -550,6 +571,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                             _updateRitualMapForNewDate(
                                                 expand: true);
                                           }
+                                          _dayColors[entry.key] ??=
+                                              _backgroundColors[
+                                                  _getColorIndex(entry.key)];
+                                          _saveRituals();
                                         });
                                       },
                                       padding: EdgeInsets.zero,
@@ -565,16 +590,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     ..._predefinedRituals.map((ritual) =>
                                         _buildRitualItem(ritual, entry.key,
                                             isCustom: false,
-                                            textColor: _textColorMap[ritual] ??
-                                                textColor)),
+                                            textColor: textColor)),
                                     ...entry.value
                                         .where((ritual) => !_predefinedRituals
                                             .contains(ritual))
                                         .map((ritual) => _buildRitualItem(
                                             ritual, entry.key,
                                             isCustom: true,
-                                            textColor: _textColorMap[ritual] ??
-                                                textColor)),
+                                            textColor: textColor)),
                                     if (!(_addingCustomRitualMap[entry.key] ??
                                         false))
                                       GestureDetector(
@@ -642,8 +665,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                               if (_ritualController
                                                   .text.isNotEmpty) {
                                                 _addCustomRitual(
-                                                    _ritualController.text,
-                                                    textColor);
+                                                    _ritualController.text);
                                               }
                                             },
                                             child: Icon(
@@ -663,6 +685,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           setState(() {
                                             _isExpandedMap[entry.key] = false;
                                             _ritualController.clear();
+                                            _dayColors[entry.key] ??=
+                                                _backgroundColors[
+                                                    _getColorIndex(entry.key)];
+                                            _saveRituals();
                                           });
                                         },
                                         style: OutlinedButton.styleFrom(
@@ -700,4 +726,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
     );
   }
+}
+
+Future<DateTime?> showCalendarDialog(
+    BuildContext context,
+    List<DateTime> completedDays,
+    int currentIndex,
+    Function(DateTime?) onDaySelected,
+    Map<String, Map<String, Set<String>>> ritualsByMonth,
+    Map<String, Color> dayColors) async {
+  DateTime? selectedDay = await showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.all(15.w),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+          child: CustomCalendarWidget(
+            initialMonth: DateTime(DateTime.now().year, currentIndex + 1),
+            onDaySelected: (selectedDay) {
+              onDaySelected(selectedDay);
+            },
+            completedDays: completedDays,
+            ritualsByMonth: ritualsByMonth,
+            dayColors: dayColors,
+          ),
+        ),
+      );
+    },
+  );
+  return selectedDay;
 }

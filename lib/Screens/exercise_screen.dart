@@ -25,6 +25,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   bool _isPreparation = true;
   bool _isNavigating = false;
   List<DateTime> completedDays = [];
+  Set<int> completedExercises = {};
 
   @override
   void initState() {
@@ -64,25 +65,31 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         } else {
           if (_isPreparation) {
             _showLetsGoDialog();
-          } else if (_currentPage < exercises.length - 1) {
-            _showNextExerciseDialog();
           } else {
-            _timer!.cancel();
-            DateTime today = DateTime.now();
-            DateTime dateOnly = DateTime(today.year, today.month, today.day);
-            setState(() {
-              if (!completedDays.any((day) => day == dateOnly)) {
-                completedDays.add(dateOnly);
+            completedExercises.add(_currentPage - 2);
+            if (_currentPage < exercises.length + 1) {
+              _showNextExerciseDialog();
+            } else {
+              _timer!.cancel();
+              if (completedExercises.length == exercises.length) {
+                DateTime today = DateTime.now();
+                DateTime dateOnly =
+                    DateTime(today.year, today.month, today.day);
+                setState(() {
+                  if (!completedDays.any((day) => day == dateOnly)) {
+                    completedDays.add(dateOnly);
+                  }
+                });
+                _saveCompletedDays();
               }
-            });
-            _saveCompletedDays();
-            _updateCalendar();
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MainScreen(),
-              ),
-            );
+              _updateCalendar();
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MainScreen(),
+                ),
+              );
+            }
           }
         }
       });
@@ -239,6 +246,8 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
           initialMonth: DateTime.now(),
           onDaySelected: (DateTime day) {},
           completedDays: completedDays,
+          ritualsByMonth: {},
+          dayColors: {},
         );
       },
     );
@@ -273,7 +282,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               backgroundColor: Colors.transparent,
               elevation: 0,
               toolbarHeight: 80.h,
-              automaticallyImplyLeading: false, // Disable default back button
+              automaticallyImplyLeading: false,
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
