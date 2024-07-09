@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 
@@ -121,15 +122,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   void _createRitualForDate(String dateKey, Set<String> rituals) {
     String monthKey = "${_selectedDate!.year}-${_selectedDate!.month}";
+
     setState(() {
       if (!_ritualsByMonth.containsKey(monthKey)) {
         _ritualsByMonth[monthKey] = {};
       }
       _ritualsByMonth[monthKey]![dateKey] = rituals;
-      if (!_dayColors.containsKey(dateKey)) {
-        _dayColors[dateKey] = _backgroundColors[_getColorIndex(dateKey)];
-      }
+      _dayColors[dateKey] = _backgroundColors[_getColorIndex(dateKey)];
     });
+
     _saveRituals();
   }
 
@@ -137,27 +138,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (_selectedDate != null) {
       String monthKey = "${_selectedDate!.year}-${_selectedDate!.month}";
       String dateKey = _selectedDate.toString();
-      Set<String>? rituals = _ritualsByMonth[monthKey]?[dateKey] ?? <String>{};
-      setState(() {
-        if (rituals.contains(ritual)) {
-          rituals.remove(ritual);
-        } else {
-          rituals.add(ritual);
-        }
-        _ritualsByMonth[monthKey]![dateKey] = rituals;
-        _dayColors[dateKey] ??= _backgroundColors[_getColorIndex(dateKey)];
-      });
-      _saveRituals();
+      Set<String> rituals = _ritualsByMonth[monthKey]?[dateKey] ?? <String>{};
+
+      if (rituals.contains(ritual)) {
+        rituals.remove(ritual);
+      } else {
+        rituals.add(ritual);
+      }
+
+      _createRitualForDate(dateKey, rituals);
     }
   }
 
   void _addCustomRitual(String ritual) {
     if (_selectedDate != null && ritual.isNotEmpty) {
       String dateKey = _selectedDate.toString();
-      Set<String> rituals =
-          _ritualsByMonth["${_selectedDate!.year}-${_selectedDate!.month}"]
-                  ?[dateKey] ??
-              <String>{};
+      String monthKey = "${_selectedDate!.year}-${_selectedDate!.month}";
+      Set<String> rituals = _ritualsByMonth[monthKey]?[dateKey] ?? <String>{};
       rituals.add(ritual);
       _createRitualForDate(dateKey, rituals);
       setState(() {
@@ -209,15 +206,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void _updateRitualMapForNewDate({bool expand = false}) {
     if (_selectedDate == null) return;
     String monthKey = "${_selectedDate!.year}-${_selectedDate!.month}";
-    if (!_ritualsByMonth.containsKey(monthKey)) {
-      _ritualsByMonth[monthKey] = {};
-    }
-    if (!_ritualsByMonth[monthKey]!.containsKey(_selectedDate.toString())) {
-      _ritualsByMonth[monthKey]![_selectedDate.toString()] = <String>{};
-      if (expand) {
-        _isExpandedMap[_selectedDate.toString()] = true;
+
+    setState(() {
+      if (!_ritualsByMonth.containsKey(monthKey)) {
+        _ritualsByMonth[monthKey] = {};
       }
-    }
+      if (!_ritualsByMonth[monthKey]!.containsKey(_selectedDate.toString())) {
+        _ritualsByMonth[monthKey]![_selectedDate.toString()] = <String>{};
+        if (expand) {
+          _isExpandedMap[_selectedDate.toString()] = true;
+        }
+        _dayColors[_selectedDate.toString()] =
+            _backgroundColors[_getColorIndex(_selectedDate.toString())];
+      }
+    });
+
+    _saveRituals();
   }
 
   void _showDeleteDialog(String monthKey, String dateKey) {
@@ -230,6 +234,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _saveRituals();
       });
     }, date);
+  }
+
+  void _onOkButtonPressed() {
+    setState(() {
+      if (_selectedDate != null) {
+        _isExpandedMap[_selectedDate.toString()] = false;
+        _ritualController.clear();
+        _dayColors[_selectedDate.toString()] =
+            _backgroundColors[_getColorIndex(_selectedDate.toString())];
+        _saveRituals();
+      }
+    });
   }
 
   String _formatDate(DateTime date) {
@@ -681,16 +697,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       height: 50.h,
                                       width: double.infinity,
                                       child: OutlinedButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            _isExpandedMap[entry.key] = false;
-                                            _ritualController.clear();
-                                            _dayColors[entry.key] ??=
-                                                _backgroundColors[
-                                                    _getColorIndex(entry.key)];
-                                            _saveRituals();
-                                          });
-                                        },
+                                        onPressed: _onOkButtonPressed,
                                         style: OutlinedButton.styleFrom(
                                           side: BorderSide(
                                               color: Colors.black, width: 2.w),
